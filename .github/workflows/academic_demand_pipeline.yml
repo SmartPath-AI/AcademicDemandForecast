@@ -1,0 +1,84 @@
+name: Academic Demand Forecast CI/CD
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  setup-environment:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.10
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+  exploratory-data-analysis:
+    runs-on: ubuntu-latest
+    needs: setup-environment
+    steps:
+      - name: Run EDA scripts
+        run: |
+          python scripts/exploratory_data_analysis.py
+    if: github.event_name == 'workflow_dispatch'
+
+  feature-engineering:
+    runs-on: ubuntu-latest
+    needs: setup-environment
+    steps:
+      - name: Run feature engineering
+        run: |
+          python scripts/feature_engineering.py
+
+  model-training:
+    runs-on: ubuntu-latest
+    needs: feature-engineering
+    steps:
+      - name: Train the model
+        run: |
+          python scripts/model_training.py
+
+  model-evaluation:
+    runs-on: ubuntu-latest
+    needs: model-training
+    steps:
+      - name: Evaluate model performance
+        run: |
+          python scripts/model_evaluation.py
+
+  deploy-model:
+    runs-on: ubuntu-latest
+    needs: model-evaluation
+    if: github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Deploy model
+        run: |
+          python scripts/deploy_model.py
+
+  documentation:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate documentation
+        run: |
+          python scripts/generate_documentation.py
+
+  post-update:
+    runs-on: ubuntu-latest
+    needs: [setup-environment, feature-engineering, model-training, model-evaluation]
+    steps:
+      - name: Notify team of update
+        run: |
+          echo "Model pipeline has been successfully updated and evaluated."
